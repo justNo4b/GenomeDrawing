@@ -5,7 +5,8 @@ from argparse import ArgumentParser
 from Bio import SeqIO
 
 #define draw parameters
-xSize       = 1200
+xSize       = 700
+xName       = "Khandagaity Melophagus ifla-like virus"
 
 padding_top         = 25
 padding_left        = 45
@@ -17,6 +18,7 @@ padding_cap_y       = 37
 
 ORF_width     = 13
 line_width    = 5
+isOnlyOne     = False
 
 #define containers
 workload     = []
@@ -29,7 +31,7 @@ ORF_struct = namedtuple("ORF_struct", "name start length drawlevel color")
 #parse some arguments
 parser = argparse.ArgumentParser()
 parser.add_argument("-seg", "--file_input", nargs="*", type=str)
-workload =parser.parse_args().file_input
+workload = parser.parse_args().file_input
 
 #calculate some important stuff
 seg_count   = len(workload)
@@ -40,8 +42,9 @@ ySize       = int (padding_top + thinkness * (seg_count + 1) * 1.5)
 
 #####
 # Work with seq
-
+fileCount = 0
 for file in workload:
+    fileCount = fileCount + 1
     for sequence in SeqIO.parse(file, "gb"):
         segmentSizes.append(len(sequence.seq))
         allORFs  = []
@@ -77,6 +80,9 @@ for file in workload:
                 allORFs.append(newOrf)
         ORF_array.append(allORFs)
 
+if (fileCount == 1):
+    isOnlyOne = True
+
 # найти масштаб, используя максимальную длину сгмента и xSize
 # сперва найти самый длинный сегмент
 max_length = 0
@@ -98,9 +104,13 @@ drawObject = ImageDraw.Draw(image)
 # создать шрифт для прорисовки
 number_font    = ImageFont.truetype("OpenSans-Regular.ttf", 13)
 header_font    = ImageFont.truetype("OpenSans-Regular.ttf", 16)
+title_font    = ImageFont.truetype("OpenSans-Regular.ttf", 18)
 
 nextSegY = padding_top
 maxLevel = 0
+
+# Name on the top of it
+drawObject.text((padding_left, padding_top), text=xName, fill="Black", font=title_font, anchor="la")
 for i in range(0, len(segmentSizes)):
     # calculate positions
     c = i + 1
@@ -110,7 +120,8 @@ for i in range(0, len(segmentSizes)):
     drawObject.line([(padding_left, y), (x2, y)], fill="Black", width=line_width)
     drawObject.text((padding_left - padding_text, y - padding_text), text="5`", fill="Black", font=header_font, anchor="la")
     drawObject.text((int(x2 + padding_text / 2), y - padding_text), text="3`", fill="Black", font=header_font, anchor="la")
-    drawObject.text((padding_left - padding_text, y - padding_cap_y), text=("Segment " + str(c)), fill="Black", font=header_font, anchor="la")
+    if (not isOnlyOne):
+        drawObject.text((padding_left - padding_text, y - padding_cap_y), text=("Segment " + str(c)), fill="Black", font=header_font, anchor="la")
     drawObject.text((x2, y + 5),  text = str(segmentSizes[i]), fill="Black", font=number_font, anchor="la")
     #отрисовка ORF
     for orf in ORF_array[i]:
