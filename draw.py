@@ -5,8 +5,6 @@ from argparse import ArgumentParser
 from Bio import SeqIO
 
 #define draw parameters
-xSize       = 700
-xName       = "Khandagaity Melophagus ifla-like virus"
 
 padding_top         = 25
 padding_left        = 45
@@ -31,7 +29,16 @@ ORF_struct = namedtuple("ORF_struct", "name start length drawlevel color")
 #parse some arguments
 parser = argparse.ArgumentParser()
 parser.add_argument("-seg", "--file_input", nargs="*", type=str)
+parser.add_argument("-w", "--width", type=int, default=700)
+parser.add_argument("-n", "--name", type=str, default="Virus name")
+parser.add_argument("-o", "--output", type=str, default="default")
 workload = parser.parse_args().file_input
+xSize = parser.parse_args().width
+xName = parser.parse_args().name
+xOutput = parser.parse_args().output
+#if outputfile dont specified and name is specified, set output name the same as name
+if ((xOutput == "default") and (xName != "Virus name")):
+    xOutput = xName
 
 #calculate some important stuff
 seg_count   = len(workload)
@@ -139,4 +146,4 @@ for i in range(0, len(segmentSizes)):
 
 # в конце не забыть удалить drawObject
 del drawObject
-image.save("test.png", "PNG")
+image.save(xOutput, "PNG")
