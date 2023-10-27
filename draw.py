@@ -16,7 +16,12 @@ padding_cap_y       = 37
 ORF_width           = 13
 line_width          = 5
 isOnlyOne           = False
-scale               = 1
+scale_horizontal    = 1
+leftGenomeText      = ""
+rightGenomeText     = ""
+num_font_size       = 13
+head_font_size      = 16
+title_font_size     = 18
 
 
 def _genSeqName(seq):
@@ -46,8 +51,8 @@ def _defineStrandDirection(rcRNA):
 
 def _drawComplementORF(drawObj, orf, currY, txtFont):
     y_ORF = currY + padding_ORF + padding_ORF_level * orf.drawlevel
-    x1_ORF = padding_left + orf.start * scale
-    x2_ORF = x1_ORF + orf.length * scale
+    x1_ORF = padding_left + orf.start * scale_horizontal
+    x2_ORF = x1_ORF + orf.length * scale_horizontal
     x_caption = int((x2_ORF + x1_ORF) / 2)
     y_caption = y_ORF
     x1_ORF_line = x1_ORF + ORF_width * 3
@@ -63,8 +68,8 @@ def _drawComplementORF(drawObj, orf, currY, txtFont):
 
 def _drawNormalORF(drawObj, orf, currY, txtFont):
     y_ORF = currY + padding_ORF + padding_ORF_level * orf.drawlevel
-    x1_ORF = padding_left + orf.start * scale
-    x2_ORF = x1_ORF + orf.length * scale
+    x1_ORF = padding_left + orf.start * scale_horizontal
+    x2_ORF = x1_ORF + orf.length * scale_horizontal
     x_caption = int((x2_ORF + x1_ORF) / 2)
     y_caption = y_ORF
     x2_ORF_line = x2_ORF - ORF_width * 3
@@ -79,6 +84,16 @@ def _drawNormalORF(drawObj, orf, currY, txtFont):
     drawObj.text((x_caption, y_caption),  orf.name, fill="White", font=txtFont, anchor="mm")
 
     return
+
+def _drawGap(drawObj, orf, currY):
+    print("@")
+    y_ORF = currY
+    x1_ORF = padding_left + orf.start * scale_horizontal
+    x2_ORF = x1_ORF + orf.length * scale_horizontal
+    # отрисовка наших геномных блоков
+    drawObj.rectangle([(x1_ORF, y_ORF - ORF_width), (x2_ORF, y_ORF + ORF_width)], orf.color, outline="Black")
+    return
+
 
 #define containers
 workload     = []
@@ -98,6 +113,7 @@ parser.add_argument("-o", "--output", type=str, default="default")
 parser.add_argument("-rc", "--reverse_compl", action="store_true", help="Drawn image is reverse-complement")
 parser.add_argument("-dpi", "--image_dpi", type=int, default=300, help="DPI of the obtained image, 300 is default")
 parser.add_argument("-b", "--batch_mode", action="store_true", help="Treat each gb sequence as a separate virus")
+parser.add_argument("-sc", "--scale_total", type=float, default=1.0, help="Scale everything bigger for high-res pictures")
 
 workload    = parser.parse_args().file_input
 xSize       = parser.parse_args().width
@@ -106,10 +122,11 @@ xOutput     = parser.parse_args().output
 rcRNA       = parser.parse_args().reverse_compl
 dpiUsed     = parser.parse_args().image_dpi
 isBatch     = parser.parse_args().batch_mode
+scale       = parser.parse_args().scale_total
 
 
-leftGenomeText  = ""
-rightGenomeText = ""
+
+
 
 #if outputfile dont specified and name is specified, set output name the same as name
 if ((xOutput == "default") and (xName != "Virus name")):
@@ -117,7 +134,18 @@ if ((xOutput == "default") and (xName != "Virus name")):
 
 
 _defineStrandDirection(rcRNA)
-
+padding_top         = int( scale * padding_top)
+padding_left        = int( scale * padding_left)
+padding_ORF         = int( scale * padding_ORF)
+padding_ORF_level   = int( scale * padding_ORF_level)
+padding_text        = int( scale * padding_text)
+padding_text_x      = int( scale * padding_text_x)
+padding_cap_y       = int( scale * padding_cap_y)
+ORF_width           = int( scale * ORF_width)
+line_width          = int( scale * line_width)
+num_font_size       = int( scale * num_font_size)
+head_font_size      = int( scale * head_font_size)
+title_font_size     = int( scale * title_font_size)
 
 #####
 # Work with seq
@@ -132,7 +160,7 @@ for file in workload:
         allORFs  = []
         lastend = 0
         for j in range(0, len(sequence.features)):
-            if(sequence.features[j].type == "CDS"):
+            if(sequence.features[j].type == "CDS" or sequence.features[j].type == "gap"):
                 orfLevel    = 0
                 orfName     = ""
                 orfColor    = "Purple"
@@ -140,7 +168,7 @@ for file in workload:
                 orfEnd      = int(sequence.features[j].location.end)
                 # Note -1 is complement, 1 is normal
                 orfIsCompl = sequence.features[j].location.strand
-                if (lastend >= orfStart):
+                if (lastend > orfStart):
                     orfLevel = 1
                 lastend  = orfEnd
                 try:
@@ -160,6 +188,9 @@ for file in workload:
                     orfName = "Unknown"
                 if (("RdRp" in orfProd) or ("polymerase" in orfProd)):
                     orfColor = "Green"
+                if (sequence.features[j].type == "gap"):
+                    orfName  = " "
+                    orfColor = "Gray"
                 newOrf = ORF_struct(orfName, orfStart , orfEnd - orfStart, orfIsCompl, orfLevel, orfColor)
                 allORFs.append(newOrf)
         ORF_array.append(allORFs)
@@ -171,7 +202,7 @@ if (seqCount == 1):
 #calculate some important stuff
 thinkness   = padding_ORF / 2 + ORF_width + padding_ORF + padding_cap_y
 #y-size с запасом, чтобы всё точно влезло
-ySize       = int (padding_top + thinkness * (seqCount + 1) * 1.5)
+ySize       = int (padding_top + thinkness * (seqCount + 1) * 1.5 * scale)
 # найти масштаб, используя максимальную длину сгмента и xSize
 # сперва найти самый длинный сегмент
 max_length = 0
@@ -182,7 +213,7 @@ for i in range(0, len(usedSequences)):
 # далее отмасштабировать, предполагая что мы хотим оставить по
 # крайней мере padding справа и слева
 
-scale = (xSize - padding_left * 2 ) / (max_length)
+scale_horizontal = (xSize - padding_left * 2 ) / (max_length)
 print(thinkness)
 
 # теперь отрисовка
@@ -191,9 +222,9 @@ image = Image.new("RGBA", (xSize,ySize), (255,255,255,255))
 # чтоб рисовать надо создать отдельный объект ImageDraw
 drawObject = ImageDraw.Draw(image)
 # создать шрифт для прорисовки
-number_font    = ImageFont.truetype("OpenSans-Regular.ttf", 13)
-header_font    = ImageFont.truetype("OpenSans-Regular.ttf", 16)
-title_font    = ImageFont.truetype("OpenSans-Regular.ttf", 18)
+number_font    = ImageFont.truetype("OpenSans-Regular.ttf", num_font_size)
+header_font    = ImageFont.truetype("OpenSans-Regular.ttf", head_font_size)
+title_font    = ImageFont.truetype("OpenSans-Regular.ttf", title_font_size)
 
 nextSegY = padding_top
 maxLevel = 0
@@ -204,7 +235,7 @@ for i in range(0, len(usedSequences)):
     # calculate positions
     c = i + 1
     y = nextSegY + thinkness
-    x2 = padding_left + usedSequences[i].length * scale
+    x2 = padding_left + usedSequences[i].length * scale_horizontal
     #отрисовка общих вещей - геном, размер etc
     drawObject.line([(padding_left, y), (x2, y)], fill="Black", width=line_width)
     drawObject.text((padding_left - padding_text, y - padding_text), text=leftGenomeText, fill="Black", font=header_font, anchor="la")
@@ -213,8 +244,11 @@ for i in range(0, len(usedSequences)):
     _drawSegText(usedSequences[i], isBatch, c)
     #отрисовка ORF
     for orf in ORF_array[i]:
-        if (orf.isCompl == 1): _drawNormalORF(drawObject, orf, y, number_font)
-        else: _drawComplementORF(drawObject, orf, y, number_font)
+        if (orf.color == "Gray"):
+            _drawGap(drawObject, orf, y)
+        else:
+            if (orf.isCompl == 1): _drawNormalORF(drawObject, orf, y, number_font)
+            else: _drawComplementORF(drawObject, orf, y, number_font)
         nextSegY = nextSegY + padding_ORF_level * orf.drawlevel
     nextSegY = nextSegY + thinkness
 
