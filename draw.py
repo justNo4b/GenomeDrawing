@@ -29,6 +29,25 @@ def _genSeqName(seq):
     s += seq.annotations["organism"]
     return s
 
+
+def _genLengthText(seqdata):
+    s = ""
+    if (seqdata.add5 != 0 or seqdata.add3 != 0):
+        s += ">"
+    s += str(seqdata.length - seqdata.add5 - seqdata.add3)
+    return s
+
+def _findStopReadThrough(sequence, start, end, list, add5, level):
+    fragment = sequence.seq[int(start):int(end)].translate()
+    size = 0
+    tStr = fragment[:-1].split("*")
+    for i in range(0, len(tStr) - 1):
+        size += len(tStr[i]) * 3
+        newStop = ORF_struct("STOP_CODON", start + add5 + size , 3, orfIsCompl, level, "", 0, 0, 0)
+        list.append(newStop)
+    return
+
+
 def _drawSegText(seqdata, batchmode, num):
     if (not batchmode):
         if (not isOnlyOne): drawObject.text((padding_left - padding_text, y - padding_cap_y), text=("Segment " + str(num)), fill="Black", font=header_font, anchor="la")
@@ -48,8 +67,8 @@ def _defineStrandDirection(rcRNA):
         leftGenomeText  = "5`"
         rightGenomeText = "3`"
 
-
-def _drawComplementORF(drawObj, orf, currY, txtFont):
+def _drawComplementORF(drawObj, orf, currY, txtFont, drawArrowText, drawG3, drawG5):
+    arrowColor = orf.color
     y_ORF = currY + padding_ORF + padding_ORF_level * orf.drawlevel
     x1_ORF = padding_left + orf.start * scale_horizontal
     x2_ORF = x1_ORF + orf.length * scale_horizontal
@@ -57,16 +76,21 @@ def _drawComplementORF(drawObj, orf, currY, txtFont):
     y_caption = y_ORF
     x1_ORF_line = x1_ORF + ORF_width * 3
     x1_ORF_rect = x1_ORF + ORF_width * 2
+    if (drawG5 != 0): arrowColor = "Gray"
     # отрисовка наших геномных блоков
-    drawObj.rectangle([(x1_ORF_rect, y_ORF - ORF_width), (x2_ORF, y_ORF + ORF_width)], orf.color, outline="Black")
-    drawObj.regular_polygon(bounding_circle=(x1_ORF_rect, y_ORF, ORF_width * 2), n_sides=3, rotation=90, fill=orf.color, outline="Black" )
-    drawObj.line([(x1_ORF_line, y_ORF - ORF_width), (x1_ORF_line, y_ORF + ORF_width)], orf.color, width=1)
-    # отрисовка подписей
-    drawObj.text((x_caption, y_caption),  orf.name, fill="White", font=txtFont, anchor="mm")
+    if (drawArrowText):
+        drawObj.rectangle([(x1_ORF_rect, y_ORF - ORF_width), (x2_ORF, y_ORF + ORF_width)], orf.color, outline="Black")
+        drawObj.regular_polygon(bounding_circle=(x1_ORF_rect, y_ORF, ORF_width * 2), n_sides=3, rotation=90, fill=arrowColor, outline="Black" )
+        drawObj.line([(x1_ORF_line, y_ORF - ORF_width), (x1_ORF_line, y_ORF + ORF_width)], orf.color, width=1)
+        # отрисовка подписей
+        drawObj.text((x_caption, y_caption),  orf.name, fill="White", font=txtFont, anchor="mm")
+    else:
+        drawObject.rectangle([(x1_ORF, y_ORF - ORF_width), (x2_ORF, y_ORF + ORF_width)], orf.color, outline="Black")
 
     return
 
-def _drawNormalORF(drawObj, orf, currY, txtFont):
+def _drawNormalORF(drawObj, orf, currY, txtFont, drawArrowText, drawG3, drawG5):
+    arrowColor = orf.color
     y_ORF = currY + padding_ORF + padding_ORF_level * orf.drawlevel
     x1_ORF = padding_left + orf.start * scale_horizontal
     x2_ORF = x1_ORF + orf.length * scale_horizontal
@@ -74,19 +98,31 @@ def _drawNormalORF(drawObj, orf, currY, txtFont):
     y_caption = y_ORF
     x2_ORF_line = x2_ORF - ORF_width * 3
     x2_ORF_rect = x2_ORF - ORF_width * 2
+    if (drawG3 != 0): arrowColor = "Gray"
     # отрисовка наших геномных блоков
-    drawObject.rectangle([(x1_ORF, y_ORF - ORF_width), (x2_ORF_rect, y_ORF + ORF_width)], orf.color, outline="Black")
-    drawObj.regular_polygon(bounding_circle=(x2_ORF_rect, y_ORF, ORF_width * 2), n_sides=3, rotation=270, fill=orf.color, outline="Black" )
-    drawObj.line([(x2_ORF_line, y_ORF - ORF_width), (x2_ORF_line, y_ORF + ORF_width)], orf.color, width=1)
+    # если регио слишком мелкий, опустить стрелку и подпись
+    if(drawArrowText):
+        drawObject.rectangle([(x1_ORF, y_ORF - ORF_width), (x2_ORF_rect, y_ORF + ORF_width)], orf.color, outline="Black")
+        drawObj.regular_polygon(bounding_circle=(x2_ORF_rect, y_ORF, ORF_width * 2), n_sides=3, rotation=270, fill=arrowColor, outline="Black")
+        drawObj.line([(x2_ORF_line, y_ORF - ORF_width), (x2_ORF_line, y_ORF + ORF_width)], orf.color, width=1)
+        # отрисовка подписей
+        drawObj.text((x_caption, y_caption),  orf.name, fill="White", font=txtFont, anchor="mm")
+    else:
+        drawObject.rectangle([(x1_ORF, y_ORF - ORF_width), (x2_ORF, y_ORF + ORF_width)], orf.color, outline="Black")
 
+    return
 
-    # отрисовка подписей
-    drawObj.text((x_caption, y_caption),  orf.name, fill="White", font=txtFont, anchor="mm")
+def _drawORF(drawObj, orf, currY, txtFont, drawRC):
+    x2_ORF = padding_left + (orf.start + orf.length) * scale_horizontal
+    length = orf.length * scale_horizontal
+    isTooSmall = length > ORF_width * 3
+    print(str(isTooSmall) + " " + str(length) +" " + str(x2_ORF - ORF_width * 2))
+    if (not drawRC): _drawNormalORF(drawObj, orf, currY, txtFont, isTooSmall, orf.drawG3, orf.drawG5)
+    else: _drawComplementORF(drawObj, orf, currY, txtFont, isTooSmall, orf.drawG3, orf.drawG5)
 
     return
 
 def _drawGap(drawObj, orf, currY):
-    print("@")
     y_ORF = currY
     x1_ORF = padding_left + orf.start * scale_horizontal
     x2_ORF = x1_ORF + orf.length * scale_horizontal
@@ -94,6 +130,13 @@ def _drawGap(drawObj, orf, currY):
     drawObj.rectangle([(x1_ORF, y_ORF - ORF_width), (x2_ORF, y_ORF + ORF_width)], orf.color, outline="Black")
     return
 
+def _drawStop(drawObj, orf, currY, txtFont):
+    y_ORF = currY
+    x1_ORF = padding_left + orf.start * scale_horizontal
+    x2_ORF = x1_ORF + orf.length * scale_horizontal
+    # отрисовка наших геномных блоков
+    drawObj.text((x1_ORF, y_ORF + ORF_width),  "*", fill="Black", font=txtFont, anchor="mm")
+    return
 
 #define containers
 workload     = []
@@ -101,19 +144,19 @@ usedSequences = []
 ORF_array    = []
 
 ##define structures
-ORF_struct = namedtuple("ORF_struct", "name start length isCompl drawlevel color")
-SEQ_data   = namedtuple("SEQ_data", "name length")
+ORF_struct = namedtuple("ORF_struct", "name start length isCompl drawlevel color end drawG5 drawG3")
+SEQ_data   = namedtuple("SEQ_data", "name length add5 add3")
 
 #parse some arguments
 parser = argparse.ArgumentParser()
-parser.add_argument("-seg", "--file_input", nargs="*", type=str)
-parser.add_argument("-w", "--width", type=int, default=700)
-parser.add_argument("-n", "--name", type=str, default="Virus name")
-parser.add_argument("-o", "--output", type=str, default="default")
-parser.add_argument("-rc", "--reverse_compl", action="store_true", help="Drawn image is reverse-complement")
+parser.add_argument("-i", "--file_input", nargs="*", type=str, help="Output file")
+parser.add_argument("-width", "--width", type=int, default=700, help="Width of the image (700 pixels as default)")
+parser.add_argument("-name", "--name", type=str, default="Virus name", help="If drawn in segment mode this specifies a virus name")
+parser.add_argument("-o", "--output", type=str, default="default.png", help="Output file")
+parser.add_argument("-revcompl", "--reverse_compl", action="store_true", help="Sequence is a reverse-complement (draw 5` on the right)")
 parser.add_argument("-dpi", "--image_dpi", type=int, default=300, help="DPI of the obtained image, 300 is default")
-parser.add_argument("-b", "--batch_mode", action="store_true", help="Treat each gb sequence as a separate virus")
-parser.add_argument("-sc", "--scale_total", type=float, default=1.0, help="Scale everything bigger for high-res pictures")
+parser.add_argument("-batch", "--batch_mode", action="store_true", help="Treat each gb sequence as a separate virus")
+parser.add_argument("-scale", "--scale_total", type=float, default=1.0, help="Scale everything bigger for high-res pictures")
 
 workload    = parser.parse_args().file_input
 xSize       = parser.parse_args().width
@@ -152,16 +195,17 @@ title_font_size     = int( scale * title_font_size)
 seqCount = 0
 for file in workload:
     for sequence in SeqIO.parse(file, "gb"):
+        add5 = 0
+        add3 = 0
         seqCount = seqCount + 1
         sLen = len(sequence.seq)
         sName = _genSeqName(sequence)
-        newData = SEQ_data(sName, sLen)
-        usedSequences.append(newData)
         allORFs  = []
         lastend = 0
+        orfLevel    = 0
         for j in range(0, len(sequence.features)):
             if(sequence.features[j].type == "CDS" or sequence.features[j].type == "gap"):
-                orfLevel    = 0
+
                 orfName     = ""
                 orfColor    = "Purple"
                 orfStart    = int(sequence.features[j].location.start)
@@ -169,8 +213,13 @@ for file in workload:
                 # Note -1 is complement, 1 is normal
                 orfIsCompl = sequence.features[j].location.strand
                 if (lastend > orfStart):
-                    orfLevel = 1
+                    orfLevel += 1
+                else: orfLevel = 0
                 lastend  = orfEnd
+
+                if (sequence.features[j].type == "CDS"):
+                    _findStopReadThrough(sequence, orfStart, orfEnd, allORFs, add5, orfLevel)
+
                 try:
                     orfLabel = sequence.features[j].qualifiers["label"][0]
                 except:
@@ -186,13 +235,43 @@ for file in workload:
                     orfName = orfProd
                 else:
                     orfName = "Unknown"
-                if (("RdRp" in orfProd) or ("polymerase" in orfProd)):
+                if (("RdRp" in orfProd) or ("polymerase" in orfProd) or (("RdRp" in orfLabel))):
                     orfColor = "Green"
+
+                ################################################################
+                #   Treatment of the gaps
+                #
                 if (sequence.features[j].type == "gap"):
-                    orfName  = " "
+                    orfName  = "GAP"
                     orfColor = "Gray"
-                newOrf = ORF_struct(orfName, orfStart , orfEnd - orfStart, orfIsCompl, orfLevel, orfColor)
+                    print(str(orfStart) + "    .. " + str(sLen - add5))
+                    if (orfStart <= 1 and orfEnd == 1):
+                        add5 = int(sequence.features[j].qualifiers["estimated_length"][0])
+                        sLen += add5
+                        orfStart = -add5
+                        orfEnd = 0
+                    elif (orfStart == (sLen - add5 - 1) and orfEnd == (sLen - add5)):
+                        add3 = int(sequence.features[j].qualifiers["estimated_length"][0])
+                        #####################
+                        # 3-end
+                        # Loop all existing features. If ORFs finish 3 nt to the end, extend them by add3 as well
+                        #
+                        for i in range(0, len(allORFs)):
+                            orf = allORFs[i]
+                            if (orf.end >= sLen - add5 - 2):
+                                #gappedORF = ORF_struct("", orf.end, add3 + 1, 0, orf.drawlevel, "Gray", -1)
+                                allORFs[i] = allORFs[i]._replace(length = (sLen + add3 + 1 - orf.start))
+                                allORFs[i] = allORFs[i]._replace(drawG3 = add3)
+                        orfStart += 1
+                        sLen += add3
+                        orfEnd = sLen - add5 + 1
+                        #allORFs.insert(0, gappedORF)
+
+
+                newOrf = ORF_struct(orfName, orfStart + add5 , (orfEnd + add5) - (orfStart + add5), orfIsCompl, orfLevel, orfColor, (orfEnd + add5), 0, 0)
                 allORFs.append(newOrf)
+        newData = SEQ_data(sName, sLen, add5, add3)
+        usedSequences.append(newData)
         ORF_array.append(allORFs)
 
 if (seqCount == 1):
@@ -214,7 +293,6 @@ for i in range(0, len(usedSequences)):
 # крайней мере padding справа и слева
 
 scale_horizontal = (xSize - padding_left * 2 ) / (max_length)
-print(thinkness)
 
 # теперь отрисовка
 image = Image.new("RGBA", (xSize,ySize), (255,255,255,255))
@@ -240,15 +318,17 @@ for i in range(0, len(usedSequences)):
     drawObject.line([(padding_left, y), (x2, y)], fill="Black", width=line_width)
     drawObject.text((padding_left - padding_text, y - padding_text), text=leftGenomeText, fill="Black", font=header_font, anchor="la")
     drawObject.text((int(x2 + padding_text / 2), y - padding_text), text=rightGenomeText, fill="Black", font=header_font, anchor="la")
-    drawObject.text((x2, y + 5),  text = str(usedSequences[i].length), fill="Black", font=number_font, anchor="la")
+    drawObject.text((x2 + 5, y + 5),  text = _genLengthText(usedSequences[i]), fill="Black", font=number_font, anchor="la")
     _drawSegText(usedSequences[i], isBatch, c)
     #отрисовка ORF
     for orf in ORF_array[i]:
-        if (orf.color == "Gray"):
+        if (orf.name == "GAP"):
             _drawGap(drawObject, orf, y)
+        elif (orf.name == "STOP_CODON"):
+            _drawStop(drawObject, orf, y, number_font)
         else:
-            if (orf.isCompl == 1): _drawNormalORF(drawObject, orf, y, number_font)
-            else: _drawComplementORF(drawObject, orf, y, number_font)
+            if (orf.isCompl == 1): _drawORF(drawObject, orf, y, number_font, False)
+            else: _drawORF(drawObject, orf, y, number_font, True)
         nextSegY = nextSegY + padding_ORF_level * orf.drawlevel
     nextSegY = nextSegY + thinkness
 
