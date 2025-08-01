@@ -8,8 +8,8 @@ from Bio import SeqIO
 #define draw parameters
 
 padding_top         = 25
-padding_left        = 45
-padding_ORF         = 30
+padding_left        = 42
+padding_ORF         = 40
 padding_ORF_level   = 50
 padding_text        = 15
 padding_text_x      = 10
@@ -24,6 +24,7 @@ rightGenomeText     = ""
 num_font_size       = 13
 head_font_size      = 16
 title_font_size     = 18
+font_file           = "OpenSans-Regular.ttf"
 font_circular_scale = 2
 
 
@@ -174,7 +175,8 @@ def _drawNormal(i,usedSequences):
 ###################################################
 # Helpers for circular drawings
 
-def _getArrowStart(circle, rotation, rotation_adj):
+def _getArrowStart(circle, rotation, rotation_adj, isRC):
+    if (isRC): rotation_adj = -rotation_adj
     center_x = circle[0] + (circle[2] - circle[0]) / 2
     center_y = circle[1] + (circle[3] - circle[1]) / 2
     radius = (circle[2] - circle[0] - ORF_width * 2) / 2
@@ -256,9 +258,18 @@ def _drawCircular(i,usedSequences):
 
         # отрисовка наших геномных блоков
         adj = _getArrowArcAdj(circle_xy_a[circ_level])
-        new  = _getArrowStart(circle_xy_a[circ_level], d_end, adj)
-        if ((orf.name != "GAP")): drawObject.regular_polygon(bounding_circle=new, n_sides=3, rotation=(180 - d_end + adj), fill=orf.color, outline="Black")
-        drawObject.arc(circle_xy_a[circ_level], d_start, d_end - adj, orf.color, width=(ORF_width * 2))
+        if (orf.isCompl != 1):
+            new  = _getArrowStart(circle_xy_a[circ_level], d_start, adj, True)
+            if ((orf.name != "GAP")): drawObject.regular_polygon(bounding_circle=new, n_sides=3, rotation=(-adj - d_start), fill=orf.color, outline="Black")
+            adj_start = d_start + adj
+            adj_end = d_end
+        else:
+            new  = _getArrowStart(circle_xy_a[circ_level], d_end, adj, False)
+            if ((orf.name != "GAP")): drawObject.regular_polygon(bounding_circle=new, n_sides=3, rotation=(180 - d_end + adj), fill=orf.color, outline="Black")
+            adj_start = d_start
+            adj_end = d_end - adj
+        
+        drawObject.arc(circle_xy_a[circ_level], adj_start, adj_end, orf.color, width=(ORF_width * 2))
         # отрисовка подписей
         if (orf.name != "GAP"):
             txtpoint  = _getEndXY(circle_xy_a[circ_level], (d_start + d_end) / 2, circle_point_size)
@@ -392,7 +403,6 @@ for file in workload:
                     orfName  = "GAP"
                     orfColor = "Gray"
                     if (orfStart <= 1 and orfEnd == 1):
-                        print("WTF")
                         add5 = int(sequence.features[j].qualifiers["estimated_length"][0])
                         sLen += add5
                         orfStart = -add5
@@ -440,8 +450,8 @@ if (seqCount == 1):
 #calculate some important stuff
 thinkness   = padding_ORF / 2 + ORF_width + padding_ORF + padding_cap_y
 #y-size с запасом, чтобы всё точно влезло
-ySize       = int (padding_top + thinkness * (seqCount + 1) * 1.5 * scale) * 3
-if (circular): ySize = int (padding_top * 3 + xSize + xSize * (seqCount + 1))
+ySize       = int (padding_top + thinkness * (seqCount + 1)) * 3
+if (circular): ySize = int (padding_top * 3 + xSize + xSize * (seqCount))
 
 
 # найти масштаб, используя максимальную длину сгмента и xSize
@@ -464,9 +474,9 @@ image = Image.new("RGBA", (xSize,ySize), (255,255,255,255))
 # чтоб рисовать надо создать отдельный объект ImageDraw
 drawObject = ImageDraw.Draw(image)
 # создать шрифт для прорисовки
-number_font    = ImageFont.truetype("OpenSans-Regular.ttf", num_font_size)
-header_font    = ImageFont.truetype("OpenSans-Regular.ttf", head_font_size)
-title_font    = ImageFont.truetype("OpenSans-Regular.ttf", title_font_size)
+number_font    = ImageFont.truetype(font_file, num_font_size)
+header_font    = ImageFont.truetype(font_file, head_font_size)
+title_font    = ImageFont.truetype(font_file, title_font_size)
 
 nextSegY = padding_top
 maxLevel = 0
