@@ -22,15 +22,19 @@ scale_horizontal    = 1
 leftGenomeText      = ""
 rightGenomeText     = ""
 num_font_size       = 13
-head_font_size      = 16
-title_font_size     = 18
+head_font_size      = 19
+title_font_size     = 20
 font_file           = "OpenSans-Regular.ttf"
 font_circular_scale = 2
 
 
-def _genSeqName(seq):
+def _genSeqName(seq, filetype):
     s = ""
-    s += seq.annotations["organism"]
+    if (filetype == "gb"):
+        s += seq.annotations["organism"]
+    elif(filetype == "snapgene"):
+        s += seq.description    
+    ##
     return s
 
 
@@ -301,6 +305,7 @@ parser.add_argument("-i", "--file_input", nargs="*", type=str, help="Output file
 parser.add_argument("-width", "--width", type=int, default=700, help="Width of the image (700 pixels as default)")
 parser.add_argument("-name", "--name", type=str, default="Virus name", help="If drawn in segment mode this specifies a virus name")
 parser.add_argument("-o", "--output", type=str, default="default.png", help="Output file")
+parser.add_argument("-format", "--file_format", type=str, default="gb", help="File format of the genome maps. GenBank is default")
 parser.add_argument("-revcompl", "--reverse_compl", action="store_true", help="Sequence is a reverse-complement (draw 5` on the right)")
 parser.add_argument("-dpi", "--image_dpi", type=int, default=300, help="DPI of the obtained image, 300 is default")
 parser.add_argument("-batch", "--batch_mode", action="store_true", help="Treat each gb sequence as a separate virus")
@@ -318,6 +323,7 @@ isBatch     = parser.parse_args().batch_mode
 scale       = parser.parse_args().scale_total
 circular    = parser.parse_args().circular_mode
 drawstops   = parser.parse_args().draw_stop_codons
+fileformat  = parser.parse_args().file_format
 
 
 
@@ -352,18 +358,18 @@ circle_point_size   = int( scale * circle_point_size)
 seqCount = 0
 for file in workload:
 
-    for sequence in SeqIO.parse(file, "gb"):
+    for sequence in SeqIO.parse(file, fileformat):
         add5 = 0
         add3 = 0
         seqCount = seqCount + 1
         sLen = len(sequence.seq)
-        sName = _genSeqName(sequence)
+        sName = _genSeqName(sequence, fileformat)
         allORFs  = []
         lastend = 0
         orfLevel    = 0
         for j in range(0, len(sequence.features)):
-            if(sequence.features[j].type == "CDS" or sequence.features[j].type == "gap"):
-
+            featureType = sequence.features[j].type 
+            if(featureType == "CDS" or featureType == "gap" or featureType == "misc_feature"):
                 orfName     = ""
                 orfColor    = "Purple"
                 orfStart    = int(sequence.features[j].location.start)
@@ -375,7 +381,7 @@ for file in workload:
                 else: orfLevel = 0
                 lastend  = orfEnd
 
-                if (sequence.features[j].type == "CDS"):
+                if (featureType == "CDS" or featureType == "misc_feature"):
                     if (not circular and drawstops): _findStopReadThrough(sequence, orfStart, orfEnd, allORFs, add5, orfLevel)
 
                 try:
@@ -396,10 +402,13 @@ for file in workload:
                 if (("RdRp" in orfProd) or ("polymerase" in orfProd) or (("RdRp" in orfLabel))):
                     orfColor = "Green"
 
+                if(featureType == "misc_feature"):
+                    orfColor = "Blue"
+
                 ################################################################
                 #   Treatment of the gaps
                 #
-                if (sequence.features[j].type == "gap"):
+                if (featureType == "gap"):
                     orfName  = "GAP"
                     orfColor = "Gray"
                     if (orfStart <= 1 and orfEnd == 1):
